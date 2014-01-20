@@ -1,0 +1,77 @@
+:: Assume <source folder> exist!
+
+echo off
+set FileName=%0
+set SourceFolder=%1
+set BranchName=%2
+set CurrentBuild=%3
+set GitAddress=%4
+set GitAddress=https://github.com/xufeiyun/CBRC.AppFiles.git
+set GitBranch=%5
+set ForceFlag=%6
+cd /d %SourceFolder%
+@cls
+
+@if NOT defined GitAddress goto NOT_USAGE
+
+@if NOT defined GitBranch set GitBranch=master
+
+echo File Name: [%FileName%]
+echo Source Folder: [%SourceFolder%]
+echo Branch Name: [%BranchName%]
+echo Current Build: [%CurrentBuild%]
+echo Git Address: [%GitAddress%]
+
+:: 1. clone branch firstly
+set BranchFolder=%SourceFolder%\%BranchName%
+if not exist %BranchFolder% git clone %GitAddress% %BranchName%
+if not %ERRORLEVEL% equ 0 goto NOT_CLONE
+
+cd /d %BranchFolder%
+
+if defined ForceFlag (
+	if "%ForceFlag%"=="-f" goto FORCE_SYNC
+)
+
+:: 2. sync latest files
+git pull %ForceFlag% --verbose %GitAddress%
+if not %ERRORLEVEL% equ 0 goto NOT_SYNC
+goto SUCCESS
+
+:: 3. sync all files forcibly
+:FORCE_SYNC
+::git fetch --verbose %GitAddress% %GitBranch% %GitBranch%
+git fetch --all --verbose
+if not %ERRORLEVEL% equ 0 goto NOT_SYNC
+git reset --hard origin/%GitBranch%
+if not %ERRORLEVEL% equ 0 goto NOT_SYNC
+goto SUCCESS
+
+
+:NOT_USAGE
+echo. Usage:
+echo.     "%FileName% <source folder> <branch name> <current build> <git address> [master] [-f]"
+echo.
+goto ERROR
+
+:NOT_CLONE
+echo.
+echo. Error happened while initializing the Branch: [%BranchName%].
+echo.
+goto ERROR
+
+:NOT_SYNC
+echo.
+echo. Error happened while syncing files of the Branch: [%BranchName%].
+echo.
+goto ERROR
+
+:SUCCESS
+@cd /d %SourceFolder% > NUL
+@echo on
+@exit /B 0
+
+:ERROR
+@cd /d %SourceFolder% > NUL
+@echo on
+@exit /B 1
